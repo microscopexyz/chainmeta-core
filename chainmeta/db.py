@@ -81,7 +81,7 @@ def flatten(metadata_list: List[ChainmetaItem]) -> List[ChainmetaRecord]:
     Function flatten() translates chain metadata in common schema to database records.
     """
 
-    flattened_records: List[ChainmetaRecord | None] = []
+    flattened_records: List[Optional[ChainmetaRecord]] = []
     for metadata in metadata_list:
         address, network, source, submitted_by = (
             metadata.address,
