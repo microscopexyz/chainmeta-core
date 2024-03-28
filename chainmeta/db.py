@@ -100,7 +100,7 @@ def flatten(metadata_list: List[ChainmetaItem]) -> List[ChainmetaRecord]:
             logger.warning("Invalid submitted_on date: %s", metadata.submitted_on)
             continue
 
-        valid_from_: datetime | None = None
+        valid_from_: Optional[datetime] = None
         if "valid_from" in metadata.additional_metadata:
             valid_from_str = metadata.additional_metadata["valid_from"]
             try:
@@ -108,7 +108,7 @@ def flatten(metadata_list: List[ChainmetaItem]) -> List[ChainmetaRecord]:
             except Exception:
                 logger.warning("Invalid valid_from date: %s", valid_from_str)
 
-        valid_to_: datetime | None = None
+        valid_to_: Optional[datetime] = None
         if "valid_to" in metadata.additional_metadata:
             valid_to_str = metadata.additional_metadata["valid_to"]
             try:
