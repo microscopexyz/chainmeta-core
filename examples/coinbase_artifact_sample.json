@@ -63,5 +63,22 @@
         "source": "ground_truth",
         "submitted_by": "coinbase",
         "submitted_on": "2022-09-21 00:00:00.000000000"
+    },
+    {
+        "address": "0xd5da8cef79c430d337fdb4d7a5b6646132395a86",
+        "chain": "ethereum_mainnet",
+        "entity": null,
+        "name": null,
+        "categories": [
+            "sanctioned"
+        ],
+        "source": "ground_truth",
+        "submitted_by": "coinbase",
+        "submitted_on": "2022-09-21 00:00:00.000000000",
+        "additional_metadata": {
+            "valid_from": "2022-09-21 00:00:00.000000000",
+            "valid_to": "2024-09-21 00:00:00.000000000",
+            "reason": "https://xyz.com"
+        }
     }
 ]

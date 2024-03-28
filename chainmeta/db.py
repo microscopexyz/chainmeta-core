@@ -12,12 +12,12 @@
 # limitations under the License.
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from functools import reduce as functional_reduce
 from typing import Callable, Generator, Iterable, List, Optional
 
 from dateutil import parser
-from sqlalchemy import Date, Integer, String, create_engine
+from sqlalchemy import JSON, Date, DateTime, Integer, String, create_engine
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -27,6 +27,7 @@ from sqlalchemy.orm import (
 )
 from unsync import unsync  # type: ignore
 
+from chainmeta.config import default_config
 from chainmeta.constants import Namespace
 from chainmeta.logger import logger
 from chainmeta.metadata import ChainmetaItem
@@ -53,7 +54,7 @@ class ChainmetaRecord(Base):
 
     __tablename__ = "chainmeta"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     chain: Mapped[str] = mapped_column(String(64), nullable=False)
     address: Mapped[str] = mapped_column(String(256), nullable=False)
     namespace: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -62,6 +63,9 @@ class ChainmetaRecord(Base):
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     submitted_by: Mapped[str] = mapped_column(String(64), nullable=False)
     submitted_on: Mapped[date] = mapped_column(Date, nullable=False)
+    valid_from: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    valid_to: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    additional_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=False)
 
 
 def init_db(connection_string: str) -> None:
@@ -96,9 +100,72 @@ def flatten(metadata_list: List[ChainmetaItem]) -> List[ChainmetaRecord]:
             logger.warning("Invalid submitted_on date: %s", metadata.submitted_on)
             continue
 
+        valid_from_: datetime | None = None
+        if "valid_from" in metadata.additional_metadata:
+            valid_from_str = metadata.additional_metadata["valid_from"]
+            try:
+                valid_from_ = parser.parse(valid_from_str)
+            except Exception:
+                logger.warning("Invalid valid_from date: %s", valid_from_str)
+
+        valid_to_: datetime | None = None
+        if "valid_to" in metadata.additional_metadata:
+            valid_to_str = metadata.additional_metadata["valid_to"]
+            try:
+                valid_to_ = parser.parse(valid_to_str)
+            except Exception:
+                logger.warning("Invalid valid_to date: %s", valid_to_str)
+
+        def _should_include_valid_from(tag_type: str, tag_value: str) -> bool:
+            if (
+                tag_type in ["category"]
+                and "valid_from"
+                in default_config.Categories[tag_value].additional_metadata_fields
+            ):
+                return True
+            return False
+
+        def _should_include_valid_to(tag_type: str, tag_value: str) -> bool:
+            if (
+                tag_type in ["category"]
+                and "valid_to"
+                in default_config.Categories[tag_value].additional_metadata_fields
+            ):
+                return True
+            return False
+
+        def _additional_metadata_fields(tag_type: str, tag_value: str) -> list[str]:
+            if tag_type in ["category"]:
+                return [
+                    f
+                    for f in default_config.Categories[
+                        tag_value
+                    ].additional_metadata_fields
+                    if f not in ["valid_from", "valid_to"]
+                ]
+            return []
+
         def _build_record(tag_type: str, tag_value: Optional[str]):
             if not tag_value:
                 return None
+
+            valid_from = None
+            if _should_include_valid_from(tag_type, tag_value):
+                valid_from = valid_from_
+            valid_to = None
+            if _should_include_valid_to(tag_type, tag_value):
+                valid_to = valid_to_
+
+            valid_to = (
+                valid_to_ if _should_include_valid_to(tag_type, tag_value) else None
+            )
+            field_names = _additional_metadata_fields(tag_type, tag_value)
+            all_additional_metadata = metadata.additional_metadata
+            additional_metadata = {
+                k: all_additional_metadata[k]
+                for k in field_names
+                if k in all_additional_metadata
+            }
 
             return ChainmetaRecord(
                 address=address,
@@ -109,6 +176,9 @@ def flatten(metadata_list: List[ChainmetaItem]) -> List[ChainmetaRecord]:
                 source=source,
                 submitted_by=submitted_by,
                 submitted_on=submitted_on,
+                valid_from=valid_from,
+                valid_to=valid_to,
+                additional_metadata=additional_metadata,
             )
 
         flattened_records.append(
@@ -135,9 +205,10 @@ def reduce(record_list: List[ChainmetaRecord]) -> List[ChainmetaItem]:
         metadata_groups[k].append(record)
         return metadata_groups
 
-    def _build_meta(group: List[ChainmetaRecord]) -> Optional[ChainmetaItem]:
+    def _build_meta(group: List[ChainmetaRecord]) -> List[ChainmetaItem]:
+        result: List[ChainmetaItem] = []
         if len(group) == 0:
-            return None
+            return result
         metadata = ChainmetaItem(
             chain=group[0].chain,
             address=group[0].address,
@@ -150,9 +221,41 @@ def reduce(record_list: List[ChainmetaRecord]) -> List[ChainmetaItem]:
             additional_metadata={},
         )
 
-        for record in group:
-            if record.namespace != Namespace.GLOBAL.value:
-                continue
+        records_no_additional_meta = [
+            i
+            for i in group
+            if i.namespace != Namespace.GLOBAL.value
+            and not (i.valid_from or i.valid_to or i.additional_metadata)
+        ]
+        for record in records_no_additional_meta:
+            metadata.submitted_on = max(metadata.submitted_on, str(record.submitted_on))
+            if record.scope == "entity":
+                metadata.entity = record.tag
+            elif record.scope == "name":
+                metadata.name = record.tag
+            elif record.scope == "category":
+                metadata.categories.append(record.tag)
+        if records_no_additional_meta:
+            result.append(metadata)
+
+        records_with_additional_meta = [
+            i
+            for i in group
+            if i.namespace != Namespace.GLOBAL.value
+            and (i.valid_from or i.valid_to or i.additional_metadata)
+        ]
+        for record in records_with_additional_meta:
+            metadata = ChainmetaItem(
+                chain=group[0].chain,
+                address=group[0].address,
+                entity="",
+                name=None,
+                categories=[],
+                source=group[0].source,
+                submitted_by=group[0].submitted_by,
+                submitted_on=str(group[0].submitted_on),
+                additional_metadata={},
+            )
 
             metadata.submitted_on = max(metadata.submitted_on, str(record.submitted_on))
             if record.scope == "entity":
@@ -161,15 +264,17 @@ def reduce(record_list: List[ChainmetaRecord]) -> List[ChainmetaItem]:
                 metadata.name = record.tag
             elif record.scope == "category":
                 metadata.categories.append(record.tag)
-        return metadata
+            result.append(metadata)
+
+        return result
 
     metadata_groups: defaultdict = defaultdict(list)
     functional_reduce(_group_by, record_list, metadata_groups)
 
-    reduced_list: List[Optional[ChainmetaItem]] = []
+    reduced_list: List[ChainmetaItem] = []
     for v in metadata_groups.values():
-        reduced_list.append(_build_meta(v))
-    return [i for i in reduced_list if i]
+        reduced_list += _build_meta(v)
+    return reduced_list
 
 
 @unsync
@@ -180,10 +285,10 @@ def _upload_chainmeta_single_batch(
 
     with session_maker() as session:
 
-        def _item_not_exist(record):
+        def _find_exist_item(record):
             """Check if the record already exists in the database."""
             if skip_check:
-                return True
+                return None
             with session.no_autoflush:
                 found = (
                     session.query(ChainmetaRecord)
@@ -198,23 +303,26 @@ def _upload_chainmeta_single_batch(
                     )
                     .first()
                 )
-                return found is None
+                return found
 
         skipped = 0
         total = 0
         for item in items:
             for record in flatten([item]):
-                if _item_not_exist(record):
-                    total += 1
-                    session.add(record)
+                total += 1
+                exist_item = _find_exist_item(record)
+                if exist_item:
+                    for key, value in item.__dict__.items():
+                        setattr(exist_item, key, value)
                 else:
-                    skipped += 1
+                    session.add(record)
         logger.debug(f"Skipped {skipped} and uploaded {total} records to database")
         try:
             session.commit()
         except Exception as e:
             session.rollback()
             logger.error(e)
+            return 0
         return total
 
 

@@ -28,7 +28,7 @@ class KeyedItem:
 
     def __eq__(self, __value: object) -> bool:
         if hasattr(__value, "key"):
-            return self.key == __value.key
+            return self.key == __value.__getattribute__("key")
         else:
             return self.key == __value
 
@@ -47,6 +47,7 @@ class KeyedItem:
 class Category(KeyedItem):
     display_name: str
     description: str
+    additional_metadata_fields: Set[str]
 
     def __hash__(self) -> int:
         return super().__hash__()
@@ -57,28 +58,28 @@ class Category(KeyedItem):
 
 @dataclass
 class Config:
-    Categories: Set[Category]
-    Entities: Set[KeyedItem]
-    Sources: Set[KeyedItem]
-    Chains: Set[KeyedItem]
+    Categories: dict[str, Category]
+    Entities: dict[str, KeyedItem]
+    Sources: dict[str, KeyedItem]
+    Chains: dict[str, KeyedItem]
 
 
 def validate_config(config: Config):
     """Validate the config, raise ValueError if any of the keys are invalid"""
 
-    for category in config.Categories:
+    for category in config.Categories.values():
         if not category.validate():
             raise ValueError(f"Invalid category key: {category.key}")
 
-    for entity in config.Entities:
+    for entity in config.Entities.values():
         if not entity.validate():
             raise ValueError(f"Invalid entity key: {entity.key}")
 
-    for source in config.Sources:
+    for source in config.Sources.values():
         if not source.validate():
             raise ValueError(f"Invalid source key: {source.key}")
 
-    for chain in config.Chains:
+    for chain in config.Chains.values():
         if not chain.validate():
             raise ValueError(f"Invalid chain key: {chain.key}")
 
@@ -89,22 +90,27 @@ def load_config() -> Config:
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
     config = Config(
-        set(
-            Category(i["key"], i["display_name"], i["description"])
+        {
+            i["key"]: Category(
+                i["key"],
+                i["display_name"],
+                i["description"],
+                set(i.get("additional_metadata_fields", [])),
+            )
             for i in json.load(open(dir_path + "/categories.json"))
-        ),
-        set(
-            KeyedItem(i["key"], i["display_name"])
+        },
+        {
+            i["key"]: KeyedItem(i["key"], i["display_name"])
             for i in json.load(open(dir_path + "/entities.json"))
-        ),
-        set(
-            KeyedItem(i["key"], i["display_name"])
+        },
+        {
+            i["key"]: KeyedItem(i["key"], i["display_name"])
             for i in json.load(open(dir_path + "/sources.json"))
-        ),
-        set(
-            KeyedItem(i["key"], i["display_name"])
+        },
+        {
+            i["key"]: KeyedItem(i["key"], i["display_name"])
             for i in json.load(open(dir_path + "/chains.json"))
-        ),
+        },
     )
 
     validate_config(config)
