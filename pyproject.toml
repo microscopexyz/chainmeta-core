@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chainmeta"
+version = "0.0.1"
+authors = []
+description = "Onchain metadata exchange protocol"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "jsonschema",
+  "python-dateutil",
+  "sqlalchemy",
+  "unsync",
+]
+
+[project.urls]
+Homepage = "https://github.com/microscopexyz/chainmeta-core"
+Issues = "https://github.com/microscopexyz/chainmeta-core/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src"
+]
