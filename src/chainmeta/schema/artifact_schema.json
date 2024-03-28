@@ -18,25 +18,25 @@
         ],
         "properties": {
             "chain": {
-                "$ref": "/schemas/chain"
+                "$ref": "#/$defs/chain"
             },
             "address": {
-                "$ref": "/schemas/address"
+                "$ref": "#/$defs/address"
             },
             "entity": {
-                "$ref": "/schemas/entity"
+                "$ref": "#/$defs/entity"
             },
             "name": {
-                "$ref": "/schemas/name"
+                "$ref": "#/$defs/name"
             },
             "categories": {
                 "type": "array",
                 "items": {
-                    "$ref": "/schemas/category"
+                    "$ref": "#/$defs/category"
                 }
             },
             "source": {
-                "$ref": "/schemas/source"
+                "$ref": "#/$defs/source"
             },
             "submitted_by": {
                 "type": "string"
