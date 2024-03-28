@@ -22,7 +22,7 @@ from sqlalchemy import engine_from_config, pool
 config = context.config
 
 
-db_url = os.environ["DBURL"]
+db_url = os.environ["CHAINMETA_DB_CONN"]
 config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.

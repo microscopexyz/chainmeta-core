@@ -133,6 +133,5 @@ __all__ = [
     "loads",
     "upload_chainmeta",
     "search_chainmeta",
-    "ChaintoolTranslator",
     "set_connection_string",
 ]
