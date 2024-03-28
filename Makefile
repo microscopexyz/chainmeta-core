@@ -27,3 +27,7 @@ new-contributor:
 .PHONY: doc-gen
 doc-gen:
 	pip install -r ./scripts/doc-gen/requirements.txt && ./scripts/doc-gen/cli.py $(name)
+
+.PHONY: build
+build:
+	python -m build
