@@ -1,5 +1,5 @@
 # Chainmeta
-**Chainmeta** is the onchain metadata exchange protocol defined by [Microcope Protocol](https://microscopeprotocol.xyz/)
+**Chainmeta** is the onchain metadata exchange protocol defined by [Microscope Protocol](https://microscopeprotocol.xyz/)
 
 ```
 >>> import chainmeta
