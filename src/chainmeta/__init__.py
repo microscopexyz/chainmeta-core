@@ -19,6 +19,7 @@ from chainmeta.artifact import load as artifact_load
 from chainmeta.db import init_db
 from chainmeta.db import search_chainmeta as search_chainmeta
 from chainmeta.db import upload_chainmeta
+from chainmeta.schema import Schema, common_schema
 from chainmeta.schema import resolve as schema_resolve
 from chainmeta.validator import common_artifact_validator, common_metadata_validator
 
@@ -124,6 +125,27 @@ def loads(
     )
 
 
+def load_artifact(
+    uri: str,
+    *,
+    schema: Schema = common_schema,
+    artifact_base_path: Union[str, Path, None] = None,
+    **kw,
+):
+    fileformat = uri.split(".")[-1].lower()
+    if artifact_base_path:
+        artifact_base_path = Path(artifact_base_path)
+    loaded_artifact = artifact_load(
+        uri, fileformat=fileformat, base_path=artifact_base_path
+    )
+    if not isinstance(loaded_artifact, list):
+        raise ValueError("artifact must be a list")
+    schema.validator.validate(loaded_artifact)
+    common_schema = [schema.translator.to_common_schema(a) for a in loaded_artifact]
+    common_artifact_validator.validate([c.__dict__ for c in common_schema])
+    return {"chainmetadata": {"artiface": common_schema}}
+
+
 set_connection_string()
 
 __all__ = [
@@ -131,6 +153,7 @@ __all__ = [
     "validates",
     "load",
     "loads",
+    "load_artifact",
     "upload_chainmeta",
     "search_chainmeta",
     "set_connection_string",
