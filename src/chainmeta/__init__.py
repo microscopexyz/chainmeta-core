@@ -143,7 +143,7 @@ def load_artifact(
     schema.validator.validate(loaded_artifact)
     common_schema = [schema.translator.to_common_schema(a) for a in loaded_artifact]
     common_artifact_validator.validate([c.__dict__ for c in common_schema])
-    return {"chainmetadata": {"artiface": common_schema}}
+    return common_schema
 
 
 set_connection_string()
