@@ -9,7 +9,7 @@ pre-commit:
 
 .PHONY: test
 test:
-	pytest tests -v
+	pytest tests -v --ignore-glob="**/integration_tests/*"
 
 .PHONY: db
 db:

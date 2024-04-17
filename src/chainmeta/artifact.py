@@ -13,14 +13,19 @@
 
 import json
 from pathlib import Path
-from typing import Dict, Optional, no_type_check
+from typing import Dict, Optional, Union, no_type_check
+
+import boto3
 
 file_prefix = "file:///"
+s3_prefix = "s3://"
 
 
-def local_loader(uri: str, *, base_path: Optional[Path] = None) -> str:
+def local_loader(uri: str, *, base_path: Union[str, Path, None] = None) -> str:
     if not base_path:
         raise ValueError("missing artifact base path for local artifact file")
+
+    base_path = Path(base_path)
     relative_path = uri[len(file_prefix) :]
     resolved_path = base_path.joinpath(relative_path)
     with open(resolved_path) as f:
@@ -29,7 +34,11 @@ def local_loader(uri: str, *, base_path: Optional[Path] = None) -> str:
 
 @no_type_check
 def s3_loader(uri: str, **kw) -> str:
-    pass
+    s3_client = boto3.client("s3")
+    bucket, key = uri[5:].split("/", 1)
+    response = s3_client.get_object(Bucket=bucket, Key=key)
+    content = response["Body"].read().decode("utf-8")
+    return content
 
 
 @no_type_check
@@ -72,8 +81,14 @@ parsers = {
 }
 
 
-def load(uri: str, fileformat: str, *, base_path: Optional[Path] = None) -> object:
-    loader = local_loader if uri.lower().startswith(file_prefix) else None
+def load(
+    uri: str, fileformat: str, *, base_path: Union[str, Path, None] = None
+) -> object:
+    loader = None
+    if uri.startswith(file_prefix):
+        loader = local_loader
+    if uri.startswith(s3_prefix):
+        loader = s3_loader
     parser = parsers.get(fileformat)
     if loader and parser:
         return parser(loader(uri, base_path=base_path))
