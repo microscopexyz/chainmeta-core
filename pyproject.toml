@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chainmeta"
-version = "0.0.3"
+version = "0.0.4"
 authors = []
 description = "Onchain metadata exchange protocol"
 readme = "README.md"
