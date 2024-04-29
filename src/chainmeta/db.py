@@ -279,7 +279,10 @@ def reduce(record_list: List[ChainmetaRecord]) -> List[ChainmetaItem]:
 
 @unsync
 def _upload_chainmeta_single_batch(
-    session_maker: Callable, items: Iterable[ChainmetaItem], *, skip_check: bool
+    session_maker: Callable,
+    items: Iterable[ChainmetaItem] | Iterable[ChainmetaRecord],
+    *,
+    skip_check: bool,
 ) -> int:
     """Upload a single batch of chain metadata to database."""
 
@@ -308,7 +311,11 @@ def _upload_chainmeta_single_batch(
         skipped = 0
         total = 0
         for item in items:
-            for record in flatten([item]):
+            if isinstance(item, ChainmetaItem):
+                recods = flatten([item])
+            else:
+                recods = [item]
+            for record in recods:
                 total += 1
                 exist_item = _find_exist_item(record)
                 if exist_item:
@@ -327,7 +334,7 @@ def _upload_chainmeta_single_batch(
 
 
 def upload_chainmeta(
-    items: Iterable[ChainmetaItem],
+    items: Iterable[ChainmetaItem] | Iterable[ChainmetaRecord],
     *,
     batch_size: int = 200,
     max_concurrency: int = 10,

@@ -31,3 +31,28 @@ def test_upload():
         if total == 0:
             assert False, "make sure the local db is up and running"
         assert total == 21
+
+
+def test_upload_flattened():
+    import csv
+
+    import chainmeta
+    from chainmeta.db import ChainmetaRecord
+
+    chainmeta.set_connection_string(
+        "mysql+pymysql://root:test@127.0.0.1:3306/chainmeta"
+    )
+
+    flattened_file = (
+        pathlib.Path(__file__)
+        .parent.resolve()
+        .joinpath("../data/artifacts/coinbase_sample_flattened.csv")
+    )
+    with open(flattened_file) as f:
+        reader = csv.DictReader(f)
+        data = [ChainmetaRecord(**r) for r in reader]
+
+        total = chainmeta.upload_chainmeta(data)
+        if total == 0:
+            assert False, "make sure the local db is up and running"
+        assert total == 5
