@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ast
 from abc import ABC
 from dataclasses import dataclass
 from typing import List, Optional
@@ -48,6 +49,20 @@ class ChainmetaItem:
 
     # Additional metadata
     additional_metadata: dict
+
+    def __post_init__(self):
+        if isinstance(self.categories, str):
+            if not self.categories:
+                self.categories = []
+            else:
+                self.categories = ast.literal_eval(self.categories)
+
+        if isinstance(self.additional_metadata, str):
+            if not self.additional_metadata:
+                self.additional_metadata = {}
+            else:
+                print(self.additional_metadata)
+                self.additional_metadata = ast.literal_eval(self.additional_metadata)
 
 
 class ITranslator(ABC):
